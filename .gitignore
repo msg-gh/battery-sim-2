@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+results/
+src/
+ERCOT*/
+*.xlsx
+.claude/
+pyproject.toml
+tests/
+.DS_Store
