@@ -51,8 +51,8 @@ st.markdown("""<style>
     [data-testid="stMetricValue"] {font-size: 1.5rem !important;}
 </style>""", unsafe_allow_html=True)
 
-# --- Discover and load result CSVs ---
-# Prefer full results/ (local), fall back to results_deploy/ (cloud)
+# --- Discover and load result files (CSV or Parquet) ---
+# Prefer full results/ (local CSV), fall back to results_deploy/ (cloud Parquet)
 _base = os.path.dirname(__file__)
 _full = os.path.join(_base, "results")
 _deploy = os.path.join(_base, "results_deploy")
@@ -60,15 +60,23 @@ RESULTS_DIR = _full if os.path.isdir(_full) else _deploy
 
 @st.cache_data
 def find_result_files():
-    """Find all CSV result files in the results directory."""
+    """Find all result files (CSV or Parquet) in the results directory."""
     if not os.path.isdir(RESULTS_DIR):
         return []
-    files = sorted(glob.glob(os.path.join(RESULTS_DIR, "*.csv")))
+    files = sorted(
+        glob.glob(os.path.join(RESULTS_DIR, "*.csv"))
+        + glob.glob(os.path.join(RESULTS_DIR, "*.parquet"))
+    )
     return [(os.path.basename(f), f) for f in files]
 
 @st.cache_data
 def load_data(path):
-    df = pd.read_csv(path, parse_dates=["day"])
+    if path.endswith(".parquet"):
+        df = pd.read_parquet(path)
+        if "day" in df.columns:
+            df["day"] = pd.to_datetime(df["day"])
+    else:
+        df = pd.read_csv(path, parse_dates=["day"])
     # Ensure year/month columns exist
     if "year" not in df.columns:
         df["year"] = df["day"].dt.year
@@ -80,7 +88,7 @@ import re as _re
 
 result_files = find_result_files()
 if not result_files:
-    st.error("No result CSV files found in results/ directory. Run the simulation first.")
+    st.error("No result files found in results/ directory. Run the simulation first.")
     st.stop()
 
 def _extract_capacity(filename):
